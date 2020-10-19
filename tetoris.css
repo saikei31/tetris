@@ -1,0 +1,14 @@
+.main{
+    width: 360px;
+    height: 720px;
+    display:flex;
+    flex-wrap:wrap;
+    border: solid 3px;
+}
+
+.block{
+    width: 10%;
+    height: 5%;
+    border: solid 1px;
+    box-sizing: border-box;
+}
