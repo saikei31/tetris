@@ -1,9 +1,81 @@
 .main{
+    width: 700px;
+    height: 740px;
+    display:flex;
+    flex-wrap:wrap;
+    border: solid 3px;
+}
+
+.board{
     width: 360px;
     height: 720px;
     display:flex;
     flex-wrap:wrap;
     border: solid 3px;
+}
+
+.hold{
+    width: 150px;
+    height: 120px;
+    display:flex;
+    flex-wrap:wrap;
+    border: solid 3px;
+}
+
+.holdItem{
+    width: 90%;
+    height: 60%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mino_4x2{
+    width: 120px;
+    height: 60px;
+    margin-left: auto;
+    margin-right: auto;
+    display:flex;
+    flex-wrap:wrap;
+}
+
+.mino_3x2{
+    width: 90px;
+    height: 60px;
+    margin-left: auto;
+    margin-right: auto;
+    display:flex;
+    flex-wrap:wrap;
+}
+
+.mino_2x2{
+    width: 60px;
+    height: 60px;
+    margin-left: auto;
+    margin-right: auto;
+    display:flex;
+    flex-wrap:wrap;
+}
+
+.item_block{
+    width: 30px;
+    height: 30px;
+    border: solid 1px transparent;
+    box-sizing: border-box;
+}
+
+.next{
+    width: 150px;
+    height: 540px;
+    display:flex;
+    flex-wrap:wrap;
+    border: solid 3px;
+}
+
+.nextItem{
+    width: 90%;
+    height: 15%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .block{
