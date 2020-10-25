@@ -16,35 +16,33 @@ var nextMinos = [];
 var holdedMino; 
 var sevenBag = [];
 var releaceHoldFlag = false;
+var score;
+var prevOpe = null;
+var rank = 0;
+var level = 0;
 
  //javascriptのインプット
- var input = {
-    up:0,
-    down:0,
-    left:0,
-    right:0,
-    z:0,
-    x:0,
-    c:0,
-    v:0,
-}
- 
-//ゲーム用にインプットを取得
- var keys = {
-    up:0,
-    down:0,
-    left:0,
-    right:0,
-    z:0,
-    x:0,
-    c:0,
-    v:0,
-}
+var inputType = ["ArrowUp", "ArrowDown", "ArrowRight", "ArrowLeft", "z", "x", "c", "v"];
+var inputFlag = {};
+var keyCount = {};
+
+//滞空時間
+var airTime = 0;
 
 //定数定義
 const BOARD_SIZE_X = 10;  //プレイエリアのXサイズ
-const BOARD_SIZE_Y = 21;  //プレイエリアのYサイズ + 最上段のダミー1段
+const BOARD_SIZE_Y = 22;  //プレイエリアのYサイズ + 最上段のダミー1段
 const MAX_NEXT = 5;  //
+
+//得点マトリクス
+const ADD_SCORE = [0, 40, 100, 300, 1000];
+
+//ランクマトリクス
+const RANK_SPEED = [48, 42, 36, 30, 24, 18, 12, 6, 1];
+
+//ゲームスピード
+const FPS = 60;
+const DELTA = 60/FPS;
 
 //ミノタイプ定義
 const TYPE_I = 1;
@@ -91,6 +89,7 @@ const ROTATE_B = [
     [{x:0, y:0}, {x:-1,y:0}, {x:-1, y:-1},{x:0, y: 2},{x:-1, y: 2}],
  ]
 
+
  //htmlロード時に自動で呼び出される関数
 onload = function(){
     initialize();
@@ -99,7 +98,7 @@ onload = function(){
 //ゲームのメインループを起動
 //ループ回数は15fps
 function run(){
-    mainThread = setInterval(main, 1000/15);
+    mainThread = setInterval(main, 1000/FPS);
 }
 
 //メインループの停止
@@ -118,51 +117,49 @@ function main(){
 //入力情報をゲーム用に変換する。ゲーム内時間にあわせて入力時間をカウントする。
 function processInput(){
     translateMino = copyMino(player);
-    keys.up = (keys.up+1) * input.up;
-    keys.down = (keys.down+1) * input.down;
-    keys.z = (keys.z+1) * input.z;
-    keys.x = (keys.x+1) * input.x;
-    keys.c = (keys.c+1) * input.c;
-    keys.v = (keys.v+1) * input.v;
-    keys.right = (keys.right+1) * input.right;
-    keys.left = (keys.left+1) * input.left;
+    for(var i = 0; i < inputType.length; i++){
+       keyCount[inputType[i]] = (keyCount[inputType[i]]+1) * inputFlag[inputType[i]];
+    }
 }
 
 //毎フレーム実行し、ゲーム内容を更新する。
 function update(){
     gameTime++;
-    var inputFreq = 2;
+    var inputFreq = 8 * DELTA;
     rotate = false;
+    airTime--;
 
     //ハードドロップ
-    if(keys.c == 1){
+    if(keyCount.ArrowUp == 1){
         setDropMino(translateMino);
         translate();
         putBlock(player);
         nextMino();
     //落下
-    }else if(keys.down % inputFreq == 1  || gameTime % 8== 5){
+    }else if(keyCount.ArrowDown % 5 == 1  || airTime <= 0){
+        airTime = RANK_SPEED[level];
         translateMino.pos.y++;
         if(checkOverlappedMino(translateMino)){
             putBlock(player);
             nextMino();
         }
     //ホールド
-    }else if(keys.v == 1){
+    }else if(keyCount.c == 1){
         holdMino(player.type);
-    }else if(keys.z % inputFreq == 1){
+    //左回転
+    }else if(keyCount.z == 1){
         rotateMino(translateMino, 1);
     //右回転
-    }else if(keys.x % inputFreq == 1){
+    }else if(keyCount.x == 1){
         rotateMino(translateMino, -1);
     //右移動
-    }else if(keys.right % inputFreq == 1){
+    }else if(keyCount.ArrowRight % inputFreq == 1){
         translateMino.pos.x++;
         if(checkOverlappedMino(translateMino)){
             translateMino = copyMino(player);            
         }
     //左移動
-    }else if(keys.left % inputFreq == 1){
+    }else if(keyCount.ArrowLeft % inputFreq == 1){
         translateMino.pos.x--;
         if(checkOverlappedMino(translateMino)){
             translateMino = copyMino(player);            
@@ -171,11 +168,21 @@ function update(){
     //移動反映
     translate();
     //揃ったラインを削除
-    deleteLine();
+    var delCount = deleteLine();
+    rank += delCount;
+    if(level < RANK_SPEED.length  && level < Math.floor(rank/10)){
+        level++;
+    }
+    addScore(delCount);
 
     //落下地点表示
     drop = copyMino(player);
     setDropMino(drop);
+}
+
+function addScore(cnt){
+    score += ADD_SCORE[cnt];
+    document.getElementById("score").innerHTML = "SCORE:" + score + "<br>LEVEL:" + level;
 }
 
 //ハードドロップ先を検出
@@ -191,6 +198,7 @@ function setDropMino(drop){
 
 //全行を精査し、ラインを消す。
 function deleteLine(){
+    var cnt = 0;
     for(var y = 0; y < BOARD_SIZE_Y; y++){
         var i = 0;
         for(var x = 0; x < BOARD_SIZE_X; x++){
@@ -201,8 +209,10 @@ function deleteLine(){
         if(i == BOARD_SIZE_X){
             deleteBlock(y);
             y--;
+            cnt++;
         }
     }
+    return cnt;
 }
 
 //プレイミノをホールドする。
@@ -226,6 +236,7 @@ function holdMino(type){
     hold.appendChild(div);
 }
 
+//
 function clearHold(){
     var hold = document.getElementById("holdItem");
     hold.removeChild(hold.firstChild);
@@ -284,15 +295,15 @@ function collectRotation(mino, rotateDir){
     var rotateCollect;
     //I字のみ異なる補正を利用
     if(player.type == TYPE_I){
-       rotateCollect = ROTATE_A;
+       rotateCollect = ROTATE_A[mino.rotate];
     }else{
-       rotateCollect = ROTATE_B;
-    }
+        rotateCollect = ROTATE_B[mino.rotate];
+     }
     //定数で定義した補正位置で衝突判定を繰り返す
     //衝突判定がないときに補正位置を処理を終了して補正する
     for(var i = 0; i < rotateCollect.length; i++){
-        var dx = rotateCollect[mino.rotate][i].x;
-        var dy = rotateCollect[mino.rotate][i].y;
+        var dx = rotateCollect[i].x;
+        var dy = rotateCollect[i].y;
         // 
         mino.pos.x += dx * (mino.rotate%2 == 0 ? rotateDir: 1);
         mino.pos.y += dy;
@@ -494,7 +505,7 @@ function initBoard(){
             board[y][x] = 0;
             var block = createBlock();
             block.id = "b_" + x + "_" + y;
-            if(y == 0){
+            if(y <= 1){
                 block.style.display = "none";
             }
             main.appendChild(block);
@@ -544,32 +555,29 @@ function initNext(){
     }
 }
 
+function initInput(){
+    for(var i = 0; i < inputType.length; i++){
+        inputFlag[inputType[i]] = 0;
+        keyCount[inputType[i]] = 0;
+    }
+}
+
+//初期化
 function initialize(){
     initBoard();
     initBag();
     initNext();
     nextMino();
-
+    initInput();
+    score = 0;
+    airTime = 30;    
     document.addEventListener("keydown",(event)=>{
-        if(event.keyCode==38){input.up = 1;}
-        if(event.keyCode==40){input.down = 1;}
-        if(event.keyCode==39){input.right = 1;}
-        if(event.keyCode==37){input.left = 1;}
-        if(event.keyCode==90){input.z = 1;}
-        if(event.keyCode==88){input.x = 1;}
-        if(event.keyCode==67){input.c = 1;}
-        if(event.keyCode==86){input.v = 1;}
+        console.log(event.key);
+        inputFlag[event.key] = 1;
     })
     document.addEventListener("keyup",(event)=>{
-        if(event.keyCode==38){input.up = 0;}
-        if(event.keyCode==40){input.down = 0;}
-        if(event.keyCode==39){input.right = 0;}
-        if(event.keyCode==37){input.left = 0;}
-        if(event.keyCode==90){input.z = 0;}
-        if(event.keyCode==88){input.x = 0;}
-        if(event.keyCode==67){input.c = 0;}
-        if(event.keyCode==86){input.v = 0;}
-        console.log(event.keyCode);
+        console.log(event.key);
+        inputFlag[event.key] = 0;
     })
     run();
 }
@@ -664,11 +672,11 @@ function onclickTest(){
 
     switch(value){
     case 1: 
-    board[16] = [0,0,3,4,5,6,7,8,9,10];
     board[17] = [0,0,3,4,5,6,7,8,9,10];
-    board[18] = [1,0,0,4,5,6,7,8,9,10];
-    board[19] = [1,2,3,4,5,6,7,8,9,10];
-    board[20] = [1,2,3,0,5,6,7,8,9,10];
+    board[18] = [0,0,3,4,5,6,7,8,9,10];
+    board[19] = [1,0,0,4,5,6,7,8,9,10];
+    board[20] = [1,2,3,4,5,6,7,8,9,10];
+    board[21] = [1,2,3,0,5,6,7,8,9,10];
     nextMino(5);
     break;
     case 2: 
@@ -680,20 +688,22 @@ function onclickTest(){
     nextMino(4);
     break;
     case 3: 
-    board[16] = [0,0,1,0,0,0,0,0,0,0];
-    board[17] = [1,2,3,4,0,6,7,8,9,10];
-    board[18] = [1,2,3,0,0,6,7,8,9,10];
-    board[19] = [1,2,3,0,5,6,7,8,9,10];
+    board[17] = [0,0,1,0,0,0,0,0,0,0];
+    board[18] = [1,2,3,4,0,6,7,8,9,10];
+    board[19] = [1,2,3,0,0,6,7,8,9,10];
     board[20] = [1,2,3,0,5,6,7,8,9,10];
+    board[21] = [1,2,3,0,5,6,7,8,9,10];
     nextMino(5);
     break;
     case 4: 
-    board[16] = [0,0,0,0,0,0,0,0,0,0];
-    board[17] = [1,2,3,4,0,6,7,8,9,10];
-    board[18] = [1,2,3,0,0,6,7,8,9,10];
-    board[19] = [1,2,3,0,5,6,7,8,9,10];
-    board[20] = [1,2,3,0,5,6,7,8,9,10];
-    nextMino(5);
+    board[15] = [0,0,1,0,0,0,7,8,0,0];
+    board[16] = [1,2,3,4,5,6,7,0,0,0];
+    board[17] = [1,2,3,4,5,6,7,0,9,10];
+    board[18] = [1,2,3,4,5,6,7,0,0,10];
+    board[19] = [1,2,3,4,5,6,0,0,0,10];
+    board[20] = [1,2,3,4,5,6,7,0,9,10];
+    board[21] = [1,2,3,4,5,6,7,0,9,10];
+    nextMino(6);
     break;
     }
 }
